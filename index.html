@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>今天吃什么·白起版</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <h1 class="title">今天吃什么·白起版</h1>
+    <p class="subtitle">转一转，让转盘替你做决定</p>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <p class="meta" id="meta"></p>
+
+  <section class="readout" id="readoutCard">
+    <div class="readout-label" id="readoutLabel"></div>
+    <div class="readout-value" id="readout"></div>
+    <div class="readout-sub" id="readoutSub"></div>
+    <div class="readout-hint" id="readoutHint" style="visibility:hidden">点击查看介绍</div>
+  </section>
+
+  <section class="wheel-area">
+    <div class="pointer" aria-hidden="true"></div>
+    <canvas id="wheel"></canvas>
+    <button class="spin-btn" id="spinBtn" type="button">开始</button>
+  </section>
+</div>
+
+<!-- 右侧选项抽屉 -->
+<button class="drawer-toggle" id="drawerToggle" type="button">选项</button>
+<div class="drawer-mask" id="drawerMask" hidden></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <span>当前选项池（<span id="listCount">0</span>）</span>
+    <button class="drawer-close" id="drawerClose" type="button" aria-label="关闭">×</button>
+  </div>
+  <div class="drawer-body">
+    <div class="list" id="list"></div>
+  </div>
+</aside>
+
+<!-- 结果弹窗 -->
+<div class="modal-mask" id="modalMask" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" id="modalClose" type="button" aria-label="关闭">×</button>
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-cat" id="modalCat"></div>
+    <div class="modal-body" id="modalBody"></div>
+    <button class="modal-again" id="modalAgain" type="button">再转一次</button>
+  </div>
+</div>
+
+<script src="foods.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
