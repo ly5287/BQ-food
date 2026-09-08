@@ -20,7 +20,7 @@
 ```js
 window.FOOD_DATA = {
   "主食类": [
-    {"name": "清汤面", "mid": "煮制类", "sub": "面条", "desc": ""},
+    {"name": "清汤面", "mid": "煮制类", "sub": "面条", "desc": ["主线 › 第一季 › 7-6\n\n老板把热气腾腾的拉面…"]},
     ...
   ],
   "菜品类": [ ... ],
@@ -30,7 +30,8 @@ window.FOOD_DATA = {
 };
 ```
 
-- **加一项**：在对应分类里加一行 `{"name": "小笼包", "mid": "蒸制类", "sub": "带馅", "desc": ""}`
+- **加一项**：在对应分类里加一行 `{"name": "小笼包", "mid": "蒸制类", "sub": "带馅", "desc": []}`
+- 加剧情：把文案放进 `desc` 数组，一段一个字符串，每段第一行写出处
 - **删一项**：删掉那一行
 - **加分类**：新增一个键，顶部会自动出现对应按钮
 - `mid` 是中类（煮制类、烤制类、酒…），`sub` 是小类（面条、中式烤制、啤酒…）
@@ -40,11 +41,15 @@ window.FOOD_DATA = {
 改完保存，刷新页面生效（缓存时 Ctrl+F5）。
 当前数据：主食 150 / 菜品 144 / 饮料 110 / 甜点 156 / 零食小吃 80，共 640 项。
 
-### 从表格重新导入（含介绍文案）
+### 从表格重新导入（剧情列）
 
-1. 把介绍表格放到桌面，第一列「食物名」，第二列「介绍」
-2. 编辑 `tools/export_foods.py` 顶部的 `DESC_XLSX = r'...表格路径...'`
-3. 运行 `python tools/export_foods.py`，会重新生成 `foods.js` 并把介绍自动填进 `desc`
+表格里以「剧情」开头的列（`剧情1`、`剧情2`…）会被自动收进 `desc` 数组，每段第一行按「出处」显示、其余为正文。
+
+1. 在 `食物.xlsx` 各分类 sheet 里继续填「剧情N」列即可（填到第几列都行）
+2. 运行 `python tools/export_foods.py` 重新生成 `foods.js`
+
+有 2 段以上剧情的食物，弹窗里会出现 `1 2 3…` 数字按钮，点击切换不同剧情段。
+没有剧情的条目 `desc` 为空数组，弹窗自动显示占位文案。
 
 ## 二、交互说明
 
@@ -63,10 +68,19 @@ window.FOOD_DATA = {
 2. 仓库 Settings → Pages → Source 选 `Deploy from a branch`，分支 `main`、目录 `/ (root)` → Save
 3. 等一两分钟，访问 `https://<用户名>.github.io/food-wheel/`
 
-### 绑定自己的域名
+### 日常更新（手动上传）
 
-1. 仓库根目录放 `CNAME` 文件（无后缀），内容只写一行域名，如 `eat.example.com`
-2. 域名解析商处添加 CNAME 记录：`eat` → `<用户名>.github.io`
-3. Pages 设置页 Custom domain 填同样域名，勾 Enforce HTTPS
+数据改完后，打开仓库 `https://github.com/ly5287/BQ-food` → `Add file → Upload files`，
+把改动过的文件拖进去 → Commit changes。一般只传 `foods.js` 一个文件。
 
-> 下一步要部署时，告诉我仓库名和域名，我把 CNAME 和推送命令一并写好。
+### 绑定子域名（已配置：food.87note.com）
+
+1. 仓库根目录的 `CNAME` 文件（无后缀）内容为一行：`food.87note.com`
+2. Cloudflare → DNS → Records，添加一条 CNAME：
+   - 类型 `CNAME`，名称 `food`，目标 `ly5287.github.io`
+   - **代理状态必须设为「仅限 DNS / DNS only」（灰色云）**，不要开橙色云代理，
+     否则容易与 GitHub 强制 HTTPS 冲突导致重定向循环
+3. GitHub 仓库 Settings → Pages → Custom domain 填 `food.87note.com` → Save
+4. 等 DNS 校验通过（几分钟到半小时）后，勾选 **Enforce HTTPS**
+
+> 换子域前缀（如 `food.87note.com`）时：改 `CNAME` 文件内容 + Cloudflare 记录名称 + Pages 设置，三处保持一致。

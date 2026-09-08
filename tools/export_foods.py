@@ -2,78 +2,85 @@
 """从 食物.xlsx 导出 foods.js。
 
 用法：python tools/export_foods.py
-- 读取桌面 食物.xlsx 的 主食类/菜品类/饮料/甜点/零食小吃 五个 sheet
-- 输出 foods.js，每项一行，便于手工增删：{"name":"名称","sub":"小类","desc":"介绍"}
-- 后续食物介绍文案在表格里备好后，把表格路径填到 DESC_XLSX 即可自动带入 desc
+- 读取桌面 食物.xlsx 的 主食类/菜品类/饮料/甜点/零食小吃/黑暗料理 六个 sheet
+- 前四列固定为 大类 / 中类 / 小类 / 名称（大类只在该类首行出现，需剥离）
+- 表头里以「剧情」开头的列（剧情1、剧情2…）全部收进 desc 数组；
+  每段第一行按「出处 / 标注」处理，其余为正文
+- 没有剧情的条目 desc 为空数组，页面自动显示占位文案
 """
+import json
 import os
+
 import openpyxl
 
 SRC = r'C:/Users/Administrator/Desktop/食物.xlsx'
-DESC_XLSX = ''            # 例如 r'C:/Users/Administrator/Desktop/食物介绍.xlsx'
-SHEETS = ['主食类', '菜品类', '饮料', '甜点', '零食小吃']
+SHEETS = ['主食类', '菜品类', '饮料', '甜点', '零食小吃', '黑暗料理']
 # 每个 sheet 对应的「大类」文字，只出现在该 sheet 首行，需要剥掉
-BIG = {'主食类': '主食', '菜品类': '菜品', '饮料': '饮料', '甜点': '甜点', '零食小吃': '零食小吃'}
+BIG = {'主食类': '主食', '菜品类': '菜品', '饮料': '饮料', '甜点': '甜点',
+       '零食小吃': '零食小吃', '黑暗料理': '黑暗料理'}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'foods.js')
 
 
-def load_desc():
-    """返回 {食物名: 介绍}；未配置 DESC_XLSX 时返回空字典"""
-    if not DESC_XLSX or not os.path.exists(DESC_XLSX):
-        return {}
-    wb = openpyxl.load_workbook(DESC_XLSX, data_only=True)
-    ws = wb.worksheets[0]
-    out = {}
-    for row in ws.iter_rows(values_only=True):
-        vals = [str(v).strip() for v in row if v is not None and str(v).strip()]
-        if len(vals) >= 2:
-            out[vals[0]] = vals[1]
-    return out
+def norm(v):
+    return '' if v is None else str(v).replace('\r\n', '\n').replace('\r', '\n').strip()
 
 
 def main():
-    desc_map = load_desc()
     wb = openpyxl.load_workbook(SRC, data_only=True)
     lines = []
     total = 0
+    with_scene = 0
+
     for name in SHEETS:
         ws = wb[name]
+        head = [norm(c) for c in next(ws.iter_rows(values_only=True))]
+        scene_cols = [i for i, h in enumerate(head) if h.startswith('剧情')]
         items, seen = [], set()
-        for row in ws.iter_rows(values_only=True):
-            vals = [str(v).strip() for v in row if v is not None and str(v).strip()]
-            if not vals:
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            cells = [norm(c) for c in row]
+            base = [c for c in cells[:4] if c]
+            if not base:
                 continue
-            if vals[-1] == '名称':          # 表头行
-                continue
-            food = vals[-1]
-            rest = vals[:-1]
-            if rest and rest[0] == BIG.get(name, ''):   # 去掉大类列
-                rest = rest[1:]
-            mid = rest[0] if len(rest) >= 1 else ''     # 中类（B列），如 煮制类 / 烤制类 / 酒
-            sub = rest[1] if len(rest) >= 2 else ''     # 小类（C列），如 面条 / 中式烤制 / 啤酒
+            if base[0] == BIG.get(name, ''):
+                base = base[1:]
+            food = base[-1]
+            rest = base[:-1]
             if not food or food in seen:
                 continue
             seen.add(food)
-            items.append((food, mid, sub))
+            mid = rest[0] if len(rest) >= 1 else ''
+            sub = rest[1] if len(rest) >= 2 else ''
+            scenes = [cells[i] for i in scene_cols if i < len(cells) and cells[i]]
+            if scenes:
+                with_scene += 1
+            items.append((food, mid, sub, scenes))
+
         lines.append('  "%s": [' % name)
-        for food, mid, sub in items:
-            d = desc_map.get(food, '')
-            lines.append('    {"name": "%s", "mid": "%s", "sub": "%s", "desc": "%s"},'
-                         % (food, mid, sub, d.replace('"', '\\"')))
+        for food, mid, sub, scenes in items:
+            j = lambda s: json.dumps(s, ensure_ascii=False)
+            if scenes:
+                body = ',\n'.join('      ' + j(s) for s in scenes)
+                lines.append('    {"name": %s, "mid": %s, "sub": %s, "desc": [\n%s\n    ]},'
+                             % (j(food), j(mid), j(sub), body))
+            else:
+                lines.append('    {"name": %s, "mid": %s, "sub": %s, "desc": []},'
+                             % (j(food), j(mid), j(sub)))
         lines.append('  ],')
-        print(name, len(items))
+        print(name, len(items), '有剧情', sum(1 for i in items if i[3]))
         total += len(items)
+
     if lines:
         lines[-1] = lines[-1].rstrip(',')
     js = ('// 食物选项数据（本地维护）\n'
-          '// 每行一项，直接增删即可：{ name: 名称, sub: 小类（可留空）, desc: 弹窗介绍（可留空） }\n'
-          '// 改完保存，刷新页面生效。\n'
+          '// { name: 名称, mid: 中类, sub: 小类, desc: [剧情1, 剧情2, ...] }\n'
+          '// desc 为空数组时页面显示占位文案；改完保存，刷新页面生效。\n'
           'window.FOOD_DATA = {\n' + '\n'.join(lines) + '\n};\n')
     with open(OUT, 'w', encoding='utf-8') as f:
         f.write(js)
-    print('total', total)
+    print('total', total, '有剧情条目', with_scene)
 
 
 if __name__ == '__main__':

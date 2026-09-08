@@ -27,6 +27,9 @@
   var modalTitle = document.getElementById('modalTitle');
   var modalCat = document.getElementById('modalCat');
   var modalBody = document.getElementById('modalBody');
+  var modalScenes = document.getElementById('modalScenes');
+  var modalSrc = document.getElementById('modalSrc');
+  var modalText = document.getElementById('modalText');
   var modalClose = document.getElementById('modalClose');
   var modalAgain = document.getElementById('modalAgain');
 
@@ -111,6 +114,7 @@
       var s = document.createElement('span');
       s.className = 'chip';
       s.textContent = it.name;
+      s.addEventListener('click', function () { openModal(it); });
       frag.appendChild(s);
     });
     listEl.appendChild(frag);
@@ -322,17 +326,59 @@
   /* ---------- 结果弹窗 ---------- */
   function placeholder(name) {
     return '这里是「' + name + '」的介绍占位。\n\n'
-      + '后续你会把每个食物对应的文案整理进表格，我导入后会自动填到这里。\n'
+      + '后续你会把每个食物对应的剧情整理进表格，我导入后会自动填到这里。\n'
       + '文字较长时，这个区域可以上下滑动查看。';
   }
 
-  function openModal() {
-    if (!result) return;
-    modalTitle.textContent = result.name;
-    modalCat.textContent = labelOf(result);
-    modalBody.textContent = result.desc || placeholder(result.name);
+  var currentItem = null;
+  var currentScene = 0;
+
+  function openModal(it) {
+    if (!it) return;
+    currentItem = it;
+    currentScene = 0;
+    modalTitle.textContent = it.name;
+    modalCat.textContent = labelOf(it);
+    renderScenes();
+    renderScene();
     modalMask.hidden = false;
     modalBody.scrollTop = 0;
+  }
+
+  // 多段剧情时用数字按钮切换
+  function renderScenes() {
+    var n = (currentItem.desc || []).length;
+    modalScenes.innerHTML = '';
+    if (n < 2) return;
+    for (var i = 0; i < n; i++) {
+      (function (i) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'scene-btn' + (i === currentScene ? ' on' : '');
+        b.textContent = String(i + 1);
+        b.addEventListener('click', function () {
+          currentScene = i;
+          renderScenes();
+          renderScene();
+          modalBody.scrollTop = 0;
+        });
+        modalScenes.appendChild(b);
+      })(i);
+    }
+  }
+
+  // 每段剧情：第一行是出处，其余为正文
+  function renderScene() {
+    var list = currentItem.desc || [];
+    if (!list.length) {
+      modalSrc.textContent = '';
+      modalText.textContent = placeholder(currentItem.name);
+      return;
+    }
+    var raw = list[currentScene] || '';
+    var nl = raw.indexOf('\n');
+    modalSrc.textContent = nl < 0 ? '' : raw.slice(0, nl).trim();
+    modalText.textContent = (nl < 0 ? raw : raw.slice(nl + 1)).trim();
   }
 
   function closeModal() { modalMask.hidden = true; }
@@ -356,7 +402,7 @@
   rebuildPool();
 
   btn.addEventListener('click', spin);
-  cardEl.addEventListener('click', openModal);
+  cardEl.addEventListener('click', function () { openModal(result); });
   modalClose.addEventListener('click', closeModal);
   modalMask.addEventListener('click', function (e) { if (e.target === modalMask) closeModal(); });
   modalAgain.addEventListener('click', function () { closeModal(); spin(); });
